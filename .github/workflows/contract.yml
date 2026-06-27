@@ -1,0 +1,43 @@
+name: contract
+on: [push, pull_request]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install "urirun-contract @ git+https://github.com/if-uri/urirun-contract.git"
+
+      - name: kontrakt konformuje (efekt, wzajemny inverse, przykłady)
+        run: python ci/nl_to_contract.py --validate contracts.json
+
+      - name: brak dryfu między kontraktem a wygenerowanym kodem
+        run: python ci/regen_check.py
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.22" }
+      - run: pip install "urirun-contract @ git+https://github.com/if-uri/urirun-contract.git"
+
+      - name: start producer (:8801)
+        run: CONTRACTS=contracts.json PORT=8801 python packages/producer/service.py &
+
+      - name: start consumer Python (:8802)
+        run: CONTRACTS=contracts.json PORT=8802 python packages/consumer/service.py &
+
+      - name: build + start consumer Go (:8803)
+        run: |
+          go build -C packages/consumer-go -o /tmp/consumer-go .
+          CONTRACTS=$PWD/contracts.json PORT=8803 /tmp/consumer-go &
+
+      - name: orchestrate — wait_ready + py→go handoff
+        run: |
+          CONTRACTS=contracts.json CONSUMER_GO_URL=http://localhost:8803 \
+          python orchestrator/drive.py

@@ -18,11 +18,12 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "toolkit"))
-from contract_gate import check, consumer_input_check, find_wire, wire_payload  # noqa: E402
+from urirun_contract.gate import check, consumer_input_check, find_wire, wire_payload  # noqa: E402
 from contracts_io import load  # noqa: E402
 
 PRODUCER = os.environ.get("PRODUCER_URL", "http://localhost:8801")
 CONSUMER = os.environ.get("CONSUMER_URL", "http://localhost:8802")
+CONSUMER_GO = os.environ.get("CONSUMER_GO_URL")
 PROD_ROUTE = "kv/command/set"
 CONS_ROUTE = "kv/query/get"
 CONTRACTS, WIRES = load()
@@ -44,29 +45,39 @@ def wait_ready(url, tries=40):
     raise SystemExit(f"serwis {url} nie wstał")
 
 
-def main() -> int:
-    wait_ready(PRODUCER); wait_ready(CONSUMER)
-    prod_env = post(PRODUCER, {"key": "greeting", "value": "hello world"})
+def _run_pair(label: str, producer_url: str, consumer_url: str) -> int:
+    prod_env = post(producer_url, {"key": "greeting", "value": "hello world"})
     check(CONTRACTS[PROD_ROUTE].out, prod_env, "producer.out")
 
     wire = find_wire(WIRES, PROD_ROUTE, CONS_ROUTE)
     payload = wire_payload(wire, prod_env)            # {key} dug from set's output
     mode, problems = consumer_input_check(CONTRACTS[CONS_ROUTE], payload, wire)
     if problems:
-        print(f"  ✗ krawędź niezgodna ({mode}): {problems}")
+        print(f"  ✗ [{label}] krawędź niezgodna ({mode}): {problems}")
         return 1
 
-    cons_env = post(CONSUMER, payload)
+    cons_env = post(consumer_url, payload)
     check(CONTRACTS[CONS_ROUTE].out, cons_env, "consumer.out")
     if not (cons_env.get("found") and cons_env.get("value") == "hello world"):
-        print(f"  ✗ wartość nie przeszła przez granicę procesu: {cons_env}")
+        print(f"  ✗ [{label}] wartość nie przeszła przez granicę procesu: {cons_env}")
         return 1
 
-    print(f"  [OK ] producer ──HTTP──▶ consumer   ({mode} handoff)")
+    print(f"  [OK ] {label}  ({mode} handoff)")
     print(f"        set key   = {prod_env['key']}")
     print(f"        get value = {cons_env['value']!r} (found={cons_env['found']})")
-    print("  klucz przez kontrakt, wartość przez współdzielony store, dwa procesy: OK")
     return 0
+
+
+def main() -> int:
+    wait_ready(PRODUCER); wait_ready(CONSUMER)
+    code = 0
+    code |= _run_pair("producer(py) ──HTTP──▶ consumer(py)", PRODUCER, CONSUMER)
+    if CONSUMER_GO:
+        wait_ready(CONSUMER_GO)
+        code |= _run_pair("producer(py) ──HTTP──▶ consumer(go)", PRODUCER, CONSUMER_GO)
+    if code == 0:
+        print("  klucz przez kontrakt, wartość przez współdzielony store, dwa języki: OK")
+    return code
 
 
 if __name__ == "__main__":
