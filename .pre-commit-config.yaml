@@ -1,0 +1,10 @@
+# Wepnij: `pre-commit install`. Odtąd każdy `git commit` uruchamia bramy lokalnie.
+repos:
+  - repo: local
+    hooks:
+      - id: urirun-contract-gate
+        name: kontrakt + wygenerowany kod (egzekwowane, nie shim)
+        entry: bash ci/pre_commit.sh
+        language: system
+        pass_filenames: false
+        always_run: true

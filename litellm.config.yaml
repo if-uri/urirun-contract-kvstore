@@ -1,0 +1,8 @@
+# Lokalny model przez LiteLLM — nic nie wychodzi poza maszynę.
+# Uruchom np. `ollama serve` i `ollama pull llama3.1`, potem `make contract`.
+model_list:
+  - model_name: ollama/llama3.1
+    litellm_params:
+      model: ollama/llama3.1
+      api_base: http://localhost:11434
+# Zamiast ollama można wskazać dowolny backend zgodny z LiteLLM (llama.cpp, vLLM, itp.).
