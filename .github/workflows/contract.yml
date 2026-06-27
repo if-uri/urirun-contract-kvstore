@@ -34,7 +34,7 @@ jobs:
 
       - name: build + start consumer Go (:8803)
         run: |
-          go build -C packages/consumer-go -o /tmp/consumer-go .
+          cd packages/consumer-go && go build -o /tmp/consumer-go . && cd ../..
           CONTRACTS=$PWD/contracts.json PORT=8803 /tmp/consumer-go &
 
       - name: orchestrate — wait_ready + py→go handoff
