@@ -26,18 +26,11 @@ jobs:
         with: { go-version: "1.22" }
       - run: pip install "urirun-contract @ git+https://github.com/if-uri/urirun-contract.git"
 
-      - name: start producer (:8801)
-        run: CONTRACTS=contracts.json PORT=8801 python packages/producer/service.py &
-
-      - name: start consumer Python (:8802)
-        run: CONTRACTS=contracts.json PORT=8802 python packages/consumer/service.py &
-
-      - name: build + start consumer Go (:8803)
+      - name: start all services + orchestrate
         run: |
-          cd packages/consumer-go && go build -o /tmp/consumer-go . && cd ../..
-          CONTRACTS=$PWD/contracts.json PORT=8803 /tmp/consumer-go &
-
-      - name: orchestrate — wait_ready + py→go handoff
-        run: |
-          CONTRACTS=contracts.json CONSUMER_GO_URL=http://localhost:8803 \
-          python orchestrator/drive.py
+          (cd packages/consumer-go && go build -o /tmp/consumer-go .)
+          PORT=8801 CONTRACTS=$GITHUB_WORKSPACE/contracts.json python packages/producer/service.py &>/tmp/producer.log &
+          PORT=8802 CONTRACTS=$GITHUB_WORKSPACE/contracts.json python packages/consumer/service.py &>/tmp/consumer.log &
+          PORT=8803 CONTRACTS=$GITHUB_WORKSPACE/contracts.json /tmp/consumer-go &>/tmp/go.log &
+          CONTRACTS=$GITHUB_WORKSPACE/contracts.json CONSUMER_GO_URL=http://localhost:8803 \
+            python orchestrator/drive.py || { echo "--- go.log ---"; cat /tmp/go.log; exit 1; }
