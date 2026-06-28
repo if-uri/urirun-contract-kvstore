@@ -18,7 +18,7 @@ import time
 import urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "toolkit"))
-from urirun_contract.gate import check, consumer_input_check, find_wire, wire_payload  # noqa: E402
+from contract_gate import check, consumer_input_check, find_wire, wire_payload  # noqa: E402
 from contracts_io import load  # noqa: E402
 
 PRODUCER = os.environ.get("PRODUCER_URL", "http://localhost:8801")

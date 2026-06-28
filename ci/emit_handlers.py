@@ -15,6 +15,9 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOCAL_KERNEL = os.path.join(os.path.dirname(ROOT), "urirun-contract")
+if os.path.isdir(os.path.join(LOCAL_KERNEL, "urirun_contract")):
+    sys.path.insert(0, LOCAL_KERNEL)
 
 from urirun_contract.codegen import _load_contracts_json, emit_py_module  # noqa: E402
 

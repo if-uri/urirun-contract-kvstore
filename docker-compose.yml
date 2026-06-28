@@ -2,8 +2,14 @@
 # `docker compose up --build --abort-on-container-exit --exit-code-from orchestrator`
 services:
   producer:
-    build: { context: ., dockerfile: packages/producer/Dockerfile }
-    environment: { PORT: "8801", CONTRACTS: /app/contracts.json }
+    build:
+      context: .
+      dockerfile: packages/producer/Dockerfile
+      additional_contexts:
+        urirun_contract_src: ../urirun-contract
+    environment: { PORT: "8801", CONTRACTS: /app/contracts.json, KV_STORE: /data/kvstore.json }
+    volumes:
+      - kvstore-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8801/health')"]
       interval: 3s
@@ -11,8 +17,14 @@ services:
       retries: 10
 
   consumer:
-    build: { context: ., dockerfile: packages/consumer/Dockerfile }
-    environment: { PORT: "8802", CONTRACTS: /app/contracts.json }
+    build:
+      context: .
+      dockerfile: packages/consumer/Dockerfile
+      additional_contexts:
+        urirun_contract_src: ../urirun-contract
+    environment: { PORT: "8802", CONTRACTS: /app/contracts.json, KV_STORE: /data/kvstore.json }
+    volumes:
+      - kvstore-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8802/health')"]
       interval: 3s
@@ -21,7 +33,9 @@ services:
 
   consumer-go:
     build: { context: ., dockerfile: packages/consumer-go/Dockerfile }
-    environment: { PORT: "8803", CONTRACTS: /app/contracts.json }
+    environment: { PORT: "8803", CONTRACTS: /app/contracts.json, KV_STORE: /data/kvstore.json }
+    volumes:
+      - kvstore-data:/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8803/health')"]
       interval: 3s
@@ -29,7 +43,11 @@ services:
       retries: 10
 
   orchestrator:
-    build: { context: ., dockerfile: orchestrator/Dockerfile }
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+      additional_contexts:
+        urirun_contract_src: ../urirun-contract
     environment:
       PRODUCER_URL: http://producer:8801
       CONSUMER_URL: http://consumer:8802
@@ -39,3 +57,6 @@ services:
       producer: { condition: service_healthy }
       consumer: { condition: service_healthy }
       consumer-go: { condition: service_healthy }
+
+volumes:
+  kvstore-data:
